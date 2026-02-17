@@ -371,10 +371,10 @@
 
           // Tables
           buildTable('subreddits-table', data.top_subreddits, 'subreddit',
-            s => `https://ihsoyct.github.io/?subreddit=${encodeURIComponent(s)}`);
+            s => `https://ihsoyct.github.io/?backend=artic_shift&mode=submissions&subreddit=${encodeURIComponent(s)}`);
 
           buildTable('authors-table', data.top_authors, 'author',
-            a => `https://ihsoyct.github.io/?author=${encodeURIComponent(a)}`);
+            a => `https://ihsoyct.github.io/?backend=artic_shift&mode=submissions&author=${encodeURIComponent(a)}`);
 
           buildTable('queries-table', data.top_queries, 'search_text', null);
 
