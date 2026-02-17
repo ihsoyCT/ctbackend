@@ -16,24 +16,11 @@
       min-height: 100vh;
     }
 
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 0.25rem;
-      color: #a78bfa;
-    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.25rem; color: #a78bfa; }
 
-    .subtitle {
-      color: #888;
-      font-size: 0.9rem;
-      margin-bottom: 1.25rem;
-    }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 1.25rem; }
 
-    .period-btns {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-    }
+    .period-btns { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
 
     .period-btn {
       background: #16213e;
@@ -45,95 +32,32 @@
       font-size: 0.85rem;
       transition: background 0.15s, color 0.15s;
     }
-
     .period-btn:hover { border-color: #a78bfa; color: #a78bfa; }
+    .period-btn.active { background: #a78bfa; color: #1a1a2e; border-color: #a78bfa; font-weight: 600; }
 
-    .period-btn.active {
-      background: #a78bfa;
-      color: #1a1a2e;
-      border-color: #a78bfa;
-      font-weight: 600;
-    }
+    .summary { display: flex; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
 
-    .summary {
-      display: flex;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-      flex-wrap: wrap;
-    }
+    .card { background: #16213e; border-radius: 10px; padding: 1.25rem 1.75rem; border: 1px solid #0f3460; }
 
-    .card {
-      background: #16213e;
-      border-radius: 10px;
-      padding: 1.25rem 1.75rem;
-      border: 1px solid #0f3460;
-    }
+    .stat-card { flex: 1; min-width: 150px; }
+    .stat-card .value { font-size: 2.2rem; font-weight: 700; color: #a78bfa; line-height: 1; }
+    .stat-card .label { font-size: 0.85rem; color: #888; margin-top: 0.4rem; }
 
-    .stat-card {
-      flex: 1;
-      min-width: 160px;
-    }
-
-    .stat-card .value {
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: #a78bfa;
-      line-height: 1;
-    }
-
-    .stat-card .label {
-      font-size: 0.85rem;
-      color: #888;
-      margin-top: 0.4rem;
-    }
-
-    h2 {
-      font-size: 1.1rem;
-      color: #c4b5fd;
-      margin-bottom: 1rem;
-    }
+    h2 { font-size: 1.1rem; color: #c4b5fd; margin-bottom: 1rem; }
+    .section-note { font-size: 0.75rem; color: #555; margin-top: -0.75rem; margin-bottom: 1rem; }
 
     .section { margin-bottom: 2rem; }
 
-    .chart-container {
-      background: #16213e;
-      border-radius: 10px;
-      padding: 1.25rem;
-      border: 1px solid #0f3460;
-    }
+    .chart-container { background: #16213e; border-radius: 10px; padding: 1.25rem; border: 1px solid #0f3460; }
 
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
 
-    @media (max-width: 700px) {
-      .two-col { grid-template-columns: 1fr; }
-    }
+    canvas { max-height: 280px; }
 
-    canvas { max-height: 300px; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.9rem;
-    }
-
-    th {
-      text-align: left;
-      color: #888;
-      font-weight: 500;
-      padding: 0.4rem 0.6rem;
-      border-bottom: 1px solid #0f3460;
-    }
-
-    td {
-      padding: 0.4rem 0.6rem;
-      border-bottom: 1px solid #0f3460;
-      word-break: break-all;
-    }
-
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; color: #888; font-weight: 500; padding: 0.4rem 0.6rem; border-bottom: 1px solid #0f3460; }
+    td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #0f3460; word-break: break-all; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #0f3460; }
 
@@ -143,17 +67,16 @@
     a { color: #60a5fa; text-decoration: none; }
     a:hover { text-decoration: underline; color: #93c5fd; }
 
-    #error {
-      background: #2d1b1b;
-      color: #f87171;
-      border: 1px solid #7f1d1d;
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-      margin-bottom: 1.5rem;
-      display: none;
-    }
+    .up   { color: #34d399; }
+    .down { color: #f87171; }
+    .new  { color: #34d399; font-style: italic; }
 
-    .loading { color: #555; font-style: italic; }
+    #error {
+      background: #2d1b1b; color: #f87171;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px; padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem; display: none;
+    }
   </style>
 </head>
 <body>
@@ -182,8 +105,13 @@
       <div class="value" id="days-tracked">—</div>
       <div class="label">Days Tracked</div>
     </div>
+    <div class="card stat-card">
+      <div class="value" id="avg-searches">—</div>
+      <div class="label">Avg Searches / Session</div>
+    </div>
   </div>
 
+  <!-- Requests per day -->
   <div class="section">
     <div class="chart-container">
       <h2>Unique Visitors per Day</h2>
@@ -191,17 +119,49 @@
     </div>
   </div>
 
+  <!-- Hour of day + Day of week -->
   <div class="section two-col">
     <div class="chart-container">
-      <h2>Backend</h2>
-      <canvas id="backend-chart"></canvas>
+      <h2>Hour of Day <span style="font-size:0.75rem;color:#555;font-weight:400">(UTC)</span></h2>
+      <canvas id="hour-chart"></canvas>
     </div>
     <div class="chart-container">
-      <h2>Mode</h2>
-      <canvas id="mode-chart"></canvas>
+      <h2>Day of Week</h2>
+      <canvas id="dow-chart"></canvas>
     </div>
   </div>
 
+  <!-- Searches per session + Backend/Mode -->
+  <div class="section two-col">
+    <div class="chart-container">
+      <h2>Searches per Session</h2>
+      <canvas id="session-chart"></canvas>
+    </div>
+    <div class="section two-col" style="margin-bottom:0;gap:1rem">
+      <div class="chart-container">
+        <h2>Backend</h2>
+        <canvas id="backend-chart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h2>Mode</h2>
+        <canvas id="mode-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trending subreddits -->
+  <div class="section">
+    <div class="card">
+      <h2>Trending Subreddits</h2>
+      <p class="section-note">This week vs last week — always fixed, unaffected by period filter</p>
+      <table id="trending-table">
+        <thead><tr><th class="rank">#</th><th>Subreddit</th><th class="count">This Week</th><th class="count">Last Week</th><th class="count">Change</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Top Subreddits + Top Authors -->
   <div class="section two-col">
     <div class="card">
       <h2>Top Subreddits</h2>
@@ -219,6 +179,18 @@
     </div>
   </div>
 
+  <!-- Subreddit + Author pairs -->
+  <div class="section">
+    <div class="card">
+      <h2>Subreddit + Author Pairs</h2>
+      <table id="pairs-table">
+        <thead><tr><th class="rank">#</th><th>Subreddit</th><th>Author</th><th class="count">Visitors</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Top Search Queries -->
   <div class="section">
     <div class="card">
       <h2>Top Search Queries</h2>
@@ -229,6 +201,7 @@
     </div>
   </div>
 
+  <!-- Search -->
   <div class="section">
     <div class="card">
       <h2>Search</h2>
@@ -248,6 +221,7 @@
     </div>
   </div>
 
+  <!-- Top Referers -->
   <div class="section">
     <div class="card">
       <h2>Top Referers</h2>
@@ -261,10 +235,8 @@
   <script>
     function esc(str) {
       return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function buildTable(tableId, rows, keyField, linkFn) {
@@ -276,47 +248,62 @@
       tbody.innerHTML = rows.map((r, i) => {
         const val = esc(r[keyField]);
         const cell = linkFn ? `<a href="${esc(linkFn(r[keyField]))}" target="_blank" rel="noopener">${val}</a>` : val;
-        return `<tr>
-          <td class="rank">${i + 1}</td>
-          <td>${cell}</td>
-          <td class="count">${r.count.toLocaleString()}</td>
-        </tr>`;
+        return `<tr><td class="rank">${i + 1}</td><td>${cell}</td><td class="count">${r.count.toLocaleString()}</td></tr>`;
       }).join('');
     }
 
-    const DOUGHNUT_COLORS = [
-      '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171',
-      '#818cf8', '#38bdf8', '#4ade80', '#fb923c', '#e879f9',
-    ];
+    const BAR_COLOR   = 'rgba(167,139,250,0.8)';
+    const DONUT_COLORS = ['#a78bfa','#60a5fa','#34d399','#fbbf24','#f87171','#818cf8','#38bdf8','#4ade80','#fb923c','#e879f9'];
+    const DOW_LABELS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
     Chart.defaults.color = '#ccc';
 
     let charts = {};
+    function destroyCharts() { Object.values(charts).forEach(c => c.destroy()); charts = {}; }
 
-    function destroyCharts() {
-      Object.values(charts).forEach(c => c.destroy());
-      charts = {};
-    }
-
-    function makeDoughnut(canvasId, labels, data) {
-      charts[canvasId] = new Chart(document.getElementById(canvasId), {
-        type: 'doughnut',
-        data: {
-          labels,
-          datasets: [{
-            data,
-            backgroundColor: DOUGHNUT_COLORS.slice(0, data.length),
-            borderColor: '#1a1a2e',
-            borderWidth: 2,
-          }],
-        },
+    function makeBar(id, labels, data, color) {
+      charts[id] = new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: color || BAR_COLOR, borderRadius: 3 }] },
         options: {
-          plugins: { legend: { labels: { color: '#ccc' } } },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#888' }, grid: { color: '#0f3460' } },
+            y: { ticks: { color: '#888' }, grid: { color: '#0f3460' }, beginAtZero: true },
+          },
           maintainAspectRatio: true,
         },
       });
     }
 
+    function makeDoughnut(id, labels, data) {
+      charts[id] = new Chart(document.getElementById(id), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: DONUT_COLORS.slice(0, data.length), borderColor: '#1a1a2e', borderWidth: 2 }] },
+        options: { plugins: { legend: { labels: { color: '#ccc' } } }, maintainAspectRatio: true },
+      });
+    }
+
+    // Fill sparse hour/dow data to full arrays
+    function fillHours(rows) {
+      const map = Object.fromEntries(rows.map(r => [r.hour, r.count]));
+      return Array.from({length: 24}, (_, i) => map[String(i).padStart(2, '0')] || 0);
+    }
+    function fillDays(rows) {
+      const map = Object.fromEntries(rows.map(r => [r.dow, r.count]));
+      return Array.from({length: 7}, (_, i) => map[String(i)] || 0);
+    }
+
+    function trendDelta(thisWeek, lastWeek) {
+      if (lastWeek === 0) return '<span class="new">new</span>';
+      const diff = thisWeek - lastWeek;
+      const pct  = Math.round(Math.abs(diff) / lastWeek * 100);
+      const sign = diff >= 0 ? '+' : '';
+      const cls  = diff >= 0 ? 'up' : 'down';
+      return `<span class="${cls}">${sign}${diff} (${sign}${pct}%)</span>`;
+    }
+
+    const ctBase = 'https://ihsoyct.github.io/?backend=artic_shift&mode=submissions';
     const apiKey = new URLSearchParams(location.search).get('key') || '';
     let currentPeriod = 'all';
 
@@ -326,49 +313,35 @@
       params.set('period', period);
 
       fetch('/api/stats?' + params.toString())
-        .then(r => {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
           document.getElementById('error').style.display = 'none';
-
           destroyCharts();
 
           // Summary
-          document.getElementById('total-unique').textContent =
-            (data.total_unique || 0).toLocaleString();
-          document.getElementById('total-requests').textContent =
-            (data.total_requests || 0).toLocaleString();
+          document.getElementById('total-unique').textContent   = (data.total_unique   || 0).toLocaleString();
+          document.getElementById('total-requests').textContent = (data.total_requests || 0).toLocaleString();
+          document.getElementById('avg-searches').textContent   = data.avg_searches ?? '—';
 
           const dr = data.date_range || {};
           if (dr.first_date && dr.last_date) {
-            const days = Math.round(
-              (new Date(dr.last_date) - new Date(dr.first_date)) / 86400000
-            ) + 1;
+            const days = Math.round((new Date(dr.last_date) - new Date(dr.first_date)) / 86400000) + 1;
             document.getElementById('days-tracked').textContent = days.toLocaleString();
-            document.getElementById('date-range').textContent =
-              `${dr.first_date} — ${dr.last_date}`;
+            document.getElementById('date-range').textContent   = `${dr.first_date} — ${dr.last_date}`;
           } else {
             document.getElementById('days-tracked').textContent = '0';
-            document.getElementById('date-range').textContent = 'No data yet';
+            document.getElementById('date-range').textContent   = 'No data yet';
           }
 
-          // Requests per day line chart
+          // Requests per day
           const rpd = data.requests_per_day || [];
           charts['requests-chart'] = new Chart(document.getElementById('requests-chart'), {
             type: 'line',
             data: {
               labels: rpd.map(r => r.date),
-              datasets: [{
-                label: 'Unique Visitors',
-                data: rpd.map(r => r.count),
-                borderColor: '#a78bfa',
-                backgroundColor: 'rgba(167,139,250,0.15)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 3,
-              }],
+              datasets: [{ label: 'Unique Visitors', data: rpd.map(r => r.count),
+                borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.15)',
+                fill: true, tension: 0.3, pointRadius: 3 }],
             },
             options: {
               plugins: { legend: { labels: { color: '#ccc' } } },
@@ -376,29 +349,67 @@
                 x: { ticks: { color: '#888' }, grid: { color: '#0f3460' } },
                 y: { ticks: { color: '#888' }, grid: { color: '#0f3460' }, beginAtZero: true },
               },
-              maintainAspectRatio: true,
             },
           });
 
-          // Backend doughnut
+          // Hour of day
+          makeBar('hour-chart',
+            Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + 'h'),
+            fillHours(data.hour_of_day || []));
+
+          // Day of week
+          makeBar('dow-chart', DOW_LABELS, fillDays(data.day_of_week || []), 'rgba(96,165,250,0.8)');
+
+          // Searches per session
+          const sd = data.session_distribution || [];
+          makeBar('session-chart', sd.map(r => r.bucket), sd.map(r => r.sessions), 'rgba(52,211,153,0.8)');
+
+          // Backend + Mode doughnuts
           const bc = data.backend_counts || [];
           makeDoughnut('backend-chart', bc.map(r => r.backend), bc.map(r => r.count));
-
-          // Mode doughnut
           const mc = data.mode_counts || [];
           makeDoughnut('mode-chart', mc.map(r => r.mode), mc.map(r => r.count));
 
-          // Tables
+          // Trending subreddits
+          const trendTbody = document.querySelector('#trending-table tbody');
+          const tr = data.trending_subreddits || [];
+          if (tr.length === 0) {
+            trendTbody.innerHTML = '<tr><td colspan="5" style="color:#555;padding:.5rem .6rem">No data</td></tr>';
+          } else {
+            trendTbody.innerHTML = tr.map((r, i) => `
+              <tr>
+                <td class="rank">${i + 1}</td>
+                <td><a href="${esc(ctBase + '&subreddit=' + encodeURIComponent(r.subreddit))}" target="_blank" rel="noopener">${esc(r.subreddit)}</a></td>
+                <td class="count">${r.this_week.toLocaleString()}</td>
+                <td class="count">${r.last_week.toLocaleString()}</td>
+                <td class="count">${trendDelta(r.this_week, r.last_week)}</td>
+              </tr>`).join('');
+          }
+
+          // Top subreddits + authors
           buildTable('subreddits-table', data.top_subreddits, 'subreddit',
-            s => `https://ihsoyct.github.io/?backend=artic_shift&mode=submissions&subreddit=${encodeURIComponent(s)}`);
-
+            s => ctBase + '&subreddit=' + encodeURIComponent(s));
           buildTable('authors-table', data.top_authors, 'author',
-            a => `https://ihsoyct.github.io/?backend=artic_shift&mode=submissions&author=${encodeURIComponent(a)}`);
+            a => ctBase + '&author=' + encodeURIComponent(a));
 
-          buildTable('queries-table', data.top_queries, 'search_text', null);
+          // Pairs
+          const pairsTbody = document.querySelector('#pairs-table tbody');
+          const pairs = data.subreddit_author_pairs || [];
+          if (pairs.length === 0) {
+            pairsTbody.innerHTML = '<tr><td colspan="4" style="color:#555;padding:.5rem .6rem">No data</td></tr>';
+          } else {
+            pairsTbody.innerHTML = pairs.map((r, i) => `
+              <tr>
+                <td class="rank">${i + 1}</td>
+                <td><a href="${esc(ctBase + '&subreddit=' + encodeURIComponent(r.subreddit))}" target="_blank" rel="noopener">${esc(r.subreddit)}</a></td>
+                <td><a href="${esc(ctBase + '&author=' + encodeURIComponent(r.author))}" target="_blank" rel="noopener">${esc(r.author)}</a></td>
+                <td class="count">${r.count.toLocaleString()}</td>
+              </tr>`).join('');
+          }
 
-          buildTable('referers-table', data.top_referers, 'referer',
-            r => r);
+          // Queries + referers
+          buildTable('queries-table',  data.top_queries,   'search_text', null);
+          buildTable('referers-table', data.top_referers,  'referer', r => r);
         })
         .catch(err => {
           const el = document.getElementById('error');
@@ -430,7 +441,6 @@
     function runSearch() {
       const q = searchInput.value.trim();
       if (!q) return;
-
       searchStatus.textContent = 'Searching…';
       searchTbody.innerHTML = '';
 
@@ -453,12 +463,9 @@
               <td><a href="${esc(r.raw_url)}" target="_blank" rel="noopener">${esc(r.raw_url)}</a></td>
               <td>${r.referer ? `<a href="${esc(r.referer)}" target="_blank" rel="noopener">${esc(r.referer)}</a>` : '—'}</td>
               <td style="white-space:nowrap;color:#888">${esc(r.date)}</td>
-            </tr>
-          `).join('');
+            </tr>`).join('');
         })
-        .catch(err => {
-          searchStatus.textContent = 'Error: ' + err.message;
-        });
+        .catch(err => { searchStatus.textContent = 'Error: ' + err.message; });
     }
 
     searchBtn.addEventListener('click', runSearch);
