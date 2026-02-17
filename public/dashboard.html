@@ -231,6 +231,25 @@
 
   <div class="section">
     <div class="card">
+      <h2>Search</h2>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+        <input id="search-input" type="text" placeholder="subreddit, author, URL fragment…"
+          style="flex:1;background:#1a1a2e;border:1px solid #0f3460;color:#e0e0e0;padding:0.4rem 0.75rem;border-radius:6px;font-size:0.9rem;outline:none">
+        <button id="search-btn"
+          style="background:#a78bfa;color:#1a1a2e;border:none;padding:0.4rem 1.1rem;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.9rem">Search</button>
+      </div>
+      <div id="search-status" style="color:#888;font-size:0.8rem;margin-bottom:0.5rem"></div>
+      <div style="overflow-x:auto">
+        <table id="search-table">
+          <thead><tr><th>IP</th><th>URL</th><th>Referer</th><th>Date</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
       <h2>Top Referers</h2>
       <table id="referers-table">
         <thead><tr><th class="rank">#</th><th>Referer</th><th class="count">Visitors</th></tr></thead>
@@ -400,6 +419,50 @@
     });
 
     loadStats(currentPeriod);
+
+    // ── Search ────────────────────────────────────────────────────────────────
+
+    const searchInput  = document.getElementById('search-input');
+    const searchBtn    = document.getElementById('search-btn');
+    const searchStatus = document.getElementById('search-status');
+    const searchTbody  = document.querySelector('#search-table tbody');
+
+    function runSearch() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+
+      searchStatus.textContent = 'Searching…';
+      searchTbody.innerHTML = '';
+
+      const params = new URLSearchParams();
+      if (apiKey) params.set('key', apiKey);
+      params.set('q', q);
+
+      fetch('/api/search?' + params.toString())
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+          const rows = data.results || [];
+          searchStatus.textContent = `${rows.length} result${rows.length !== 1 ? 's' : ''}`;
+          if (rows.length === 0) {
+            searchTbody.innerHTML = '<tr><td colspan="4" style="color:#555;padding:.5rem .6rem">No results</td></tr>';
+            return;
+          }
+          searchTbody.innerHTML = rows.map(r => `
+            <tr>
+              <td>${esc(r.ip || '—')}</td>
+              <td><a href="${esc(r.raw_url)}" target="_blank" rel="noopener">${esc(r.raw_url)}</a></td>
+              <td>${r.referer ? `<a href="${esc(r.referer)}" target="_blank" rel="noopener">${esc(r.referer)}</a>` : '—'}</td>
+              <td style="white-space:nowrap;color:#888">${esc(r.date)}</td>
+            </tr>
+          `).join('');
+        })
+        .catch(err => {
+          searchStatus.textContent = 'Error: ' + err.message;
+        });
+    }
+
+    searchBtn.addEventListener('click', runSearch);
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
   </script>
 </body>
 </html>

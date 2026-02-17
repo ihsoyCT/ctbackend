@@ -10,8 +10,9 @@ app.use(cors({
   methods: ['GET'],
 }));
 
-app.use('/api/stats', require('./routes/stats'));
-app.use('/api', require('./routes/tracking'));
+app.use('/api/stats',  require('./routes/stats'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api',        require('./routes/tracking'));
 
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
