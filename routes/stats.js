@@ -2,6 +2,19 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
+const CACHE_TTL = parseInt(process.env.STATS_CACHE_TTL || '300', 10) * 1000; // ms
+const cache = new Map(); // period -> { ts, data }
+
+function getCached(period) {
+  const entry = cache.get(period);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
+  return null;
+}
+
+function setCached(period, data) {
+  cache.set(period, { ts: Date.now(), data });
+}
+
 function periodWhere(period) {
   if (period === 'today') return "AND date = date('now')";
   if (period === 'week')  return "AND date >= date('now', '-6 days')";
@@ -24,6 +37,10 @@ router.get('/', (req, res) => {
   res.set('Cache-Control', 'no-store');
 
   const period = req.query.period || 'all';
+
+  const cached = getCached(period);
+  if (cached) return res.json(cached);
+
   const pw = periodWhere(period);
   const pf = periodDateFilter(period);
 
@@ -178,7 +195,7 @@ router.get('/', (req, res) => {
     LIMIT 20
   `).all();
 
-  return res.json({
+  const result = {
     top_subreddits,
     top_authors,
     top_queries,
@@ -196,7 +213,10 @@ router.get('/', (req, res) => {
     trending_subreddits,
     subreddit_author_pairs,
     period,
-  });
+  };
+
+  setCached(period, result);
+  return res.json(result);
 });
 
 module.exports = router;
