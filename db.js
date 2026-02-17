@@ -24,10 +24,18 @@ db.exec(`
     author       TEXT,
     search_text  TEXT,
     referer      TEXT,
-    user_agent   TEXT
+    user_agent   TEXT,
+    ip           TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_pv_date      ON page_views(date);
   CREATE INDEX IF NOT EXISTS idx_pv_subreddit ON page_views(subreddit);
 `);
+
+// Migration: add ip column for existing databases created before this column existed
+try {
+  db.exec('ALTER TABLE page_views ADD COLUMN ip TEXT');
+} catch {
+  // column already exists, ignore
+}
 
 module.exports = db;

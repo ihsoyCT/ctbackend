@@ -24,8 +24,35 @@
 
     .subtitle {
       color: #888;
-      margin-bottom: 2rem;
       font-size: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .period-btns {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .period-btn {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      color: #ccc;
+      padding: 0.35rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .period-btn:hover { border-color: #a78bfa; color: #a78bfa; }
+
+    .period-btn.active {
+      background: #a78bfa;
+      color: #1a1a2e;
+      border-color: #a78bfa;
+      font-weight: 600;
     }
 
     .summary {
@@ -66,9 +93,7 @@
       margin-bottom: 1rem;
     }
 
-    .section {
-      margin-bottom: 2rem;
-    }
+    .section { margin-bottom: 2rem; }
 
     .chart-container {
       background: #16213e;
@@ -106,22 +131,17 @@
     td {
       padding: 0.4rem 0.6rem;
       border-bottom: 1px solid #0f3460;
+      word-break: break-all;
     }
 
     tr:last-child td { border-bottom: none; }
-
     tr:hover td { background: #0f3460; }
 
-    .rank {
-      color: #555;
-      width: 2rem;
-    }
+    .rank { color: #555; width: 2rem; word-break: normal; }
+    .count { color: #a78bfa; text-align: right; white-space: nowrap; word-break: normal; }
 
-    .count {
-      color: #a78bfa;
-      text-align: right;
-      white-space: nowrap;
-    }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; color: #93c5fd; }
 
     #error {
       background: #2d1b1b;
@@ -129,17 +149,31 @@
       border: 1px solid #7f1d1d;
       border-radius: 8px;
       padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
       display: none;
     }
+
+    .loading { color: #555; font-style: italic; }
   </style>
 </head>
 <body>
   <h1>ctarchive Analytics</h1>
   <p class="subtitle" id="date-range">Loading...</p>
 
+  <div class="period-btns">
+    <button class="period-btn" data-period="today">Today</button>
+    <button class="period-btn" data-period="week">This Week</button>
+    <button class="period-btn" data-period="month">This Month</button>
+    <button class="period-btn active" data-period="all">All Time</button>
+  </div>
+
   <div id="error"></div>
 
-  <div class="summary" id="summary" style="display:none">
+  <div class="summary">
+    <div class="card stat-card">
+      <div class="value" id="total-unique">—</div>
+      <div class="label">Unique Visitors</div>
+    </div>
     <div class="card stat-card">
       <div class="value" id="total-requests">—</div>
       <div class="label">Total Requests</div>
@@ -152,7 +186,7 @@
 
   <div class="section">
     <div class="chart-container">
-      <h2>Requests per Day (last 30 days)</h2>
+      <h2>Unique Visitors per Day</h2>
       <canvas id="requests-chart"></canvas>
     </div>
   </div>
@@ -172,14 +206,14 @@
     <div class="card">
       <h2>Top Subreddits</h2>
       <table id="subreddits-table">
-        <thead><tr><th class="rank">#</th><th>Subreddit</th><th class="count">Requests</th></tr></thead>
+        <thead><tr><th class="rank">#</th><th>Subreddit</th><th class="count">Visitors</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
     <div class="card">
       <h2>Top Authors</h2>
       <table id="authors-table">
-        <thead><tr><th class="rank">#</th><th>Author</th><th class="count">Requests</th></tr></thead>
+        <thead><tr><th class="rank">#</th><th>Author</th><th class="count">Visitors</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -189,7 +223,17 @@
     <div class="card">
       <h2>Top Search Queries</h2>
       <table id="queries-table">
-        <thead><tr><th class="rank">#</th><th>Query</th><th class="count">Requests</th></tr></thead>
+        <thead><tr><th class="rank">#</th><th>Query</th><th class="count">Visitors</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2>Top Referers</h2>
+      <table id="referers-table">
+        <thead><tr><th class="rank">#</th><th>Referer</th><th class="count">Visitors</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -204,19 +248,21 @@
         .replace(/"/g, '&quot;');
     }
 
-    function buildTable(tableId, rows, keyField) {
+    function buildTable(tableId, rows, keyField, linkFn) {
       const tbody = document.querySelector('#' + tableId + ' tbody');
       if (!rows || rows.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="color:#555;padding:.5rem .6rem">No data</td></tr>';
         return;
       }
-      tbody.innerHTML = rows.map((r, i) => `
-        <tr>
+      tbody.innerHTML = rows.map((r, i) => {
+        const val = esc(r[keyField]);
+        const cell = linkFn ? `<a href="${esc(linkFn(r[keyField]))}" target="_blank" rel="noopener">${val}</a>` : val;
+        return `<tr>
           <td class="rank">${i + 1}</td>
-          <td>${esc(r[keyField])}</td>
+          <td>${cell}</td>
           <td class="count">${r.count.toLocaleString()}</td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
     }
 
     const DOUGHNUT_COLORS = [
@@ -224,16 +270,17 @@
       '#818cf8', '#38bdf8', '#4ade80', '#fb923c', '#e879f9',
     ];
 
-    const chartDefaults = {
-      plugins: {
-        legend: { labels: { color: '#ccc' } },
-      },
-    };
-
     Chart.defaults.color = '#ccc';
 
+    let charts = {};
+
+    function destroyCharts() {
+      Object.values(charts).forEach(c => c.destroy());
+      charts = {};
+    }
+
     function makeDoughnut(canvasId, labels, data) {
-      new Chart(document.getElementById(canvasId), {
+      charts[canvasId] = new Chart(document.getElementById(canvasId), {
         type: 'doughnut',
         data: {
           labels,
@@ -244,81 +291,115 @@
             borderWidth: 2,
           }],
         },
-        options: { ...chartDefaults, maintainAspectRatio: true },
+        options: {
+          plugins: { legend: { labels: { color: '#ccc' } } },
+          maintainAspectRatio: true,
+        },
       });
     }
 
     const apiKey = new URLSearchParams(location.search).get('key') || '';
-    const statsUrl = '/api/stats' + (apiKey ? '?key=' + encodeURIComponent(apiKey) : '');
+    let currentPeriod = 'all';
 
-    fetch(statsUrl)
-      .then(r => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(data => {
-        // Summary
-        document.getElementById('total-requests').textContent =
-          (data.total_requests || 0).toLocaleString();
+    function loadStats(period) {
+      const params = new URLSearchParams();
+      if (apiKey) params.set('key', apiKey);
+      params.set('period', period);
 
-        const dr = data.date_range || {};
-        if (dr.first_date && dr.last_date) {
-          const days = Math.round(
-            (new Date(dr.last_date) - new Date(dr.first_date)) / 86400000
-          ) + 1;
-          document.getElementById('days-tracked').textContent = days.toLocaleString();
-          document.getElementById('date-range').textContent =
-            `${dr.first_date} — ${dr.last_date}`;
-        } else {
-          document.getElementById('date-range').textContent = 'No data yet';
-        }
-        document.getElementById('summary').style.display = 'flex';
+      fetch('/api/stats?' + params.toString())
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(data => {
+          document.getElementById('error').style.display = 'none';
 
-        // Requests per day line chart
-        const rpd = data.requests_per_day || [];
-        new Chart(document.getElementById('requests-chart'), {
-          type: 'line',
-          data: {
-            labels: rpd.map(r => r.date),
-            datasets: [{
-              label: 'Requests',
-              data: rpd.map(r => r.count),
-              borderColor: '#a78bfa',
-              backgroundColor: 'rgba(167,139,250,0.15)',
-              fill: true,
-              tension: 0.3,
-              pointRadius: 3,
-            }],
-          },
-          options: {
-            ...chartDefaults,
-            scales: {
-              x: { ticks: { color: '#888' }, grid: { color: '#0f3460' } },
-              y: { ticks: { color: '#888' }, grid: { color: '#0f3460' }, beginAtZero: true },
+          destroyCharts();
+
+          // Summary
+          document.getElementById('total-unique').textContent =
+            (data.total_unique || 0).toLocaleString();
+          document.getElementById('total-requests').textContent =
+            (data.total_requests || 0).toLocaleString();
+
+          const dr = data.date_range || {};
+          if (dr.first_date && dr.last_date) {
+            const days = Math.round(
+              (new Date(dr.last_date) - new Date(dr.first_date)) / 86400000
+            ) + 1;
+            document.getElementById('days-tracked').textContent = days.toLocaleString();
+            document.getElementById('date-range').textContent =
+              `${dr.first_date} — ${dr.last_date}`;
+          } else {
+            document.getElementById('days-tracked').textContent = '0';
+            document.getElementById('date-range').textContent = 'No data yet';
+          }
+
+          // Requests per day line chart
+          const rpd = data.requests_per_day || [];
+          charts['requests-chart'] = new Chart(document.getElementById('requests-chart'), {
+            type: 'line',
+            data: {
+              labels: rpd.map(r => r.date),
+              datasets: [{
+                label: 'Unique Visitors',
+                data: rpd.map(r => r.count),
+                borderColor: '#a78bfa',
+                backgroundColor: 'rgba(167,139,250,0.15)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+              }],
             },
-            maintainAspectRatio: true,
-          },
+            options: {
+              plugins: { legend: { labels: { color: '#ccc' } } },
+              scales: {
+                x: { ticks: { color: '#888' }, grid: { color: '#0f3460' } },
+                y: { ticks: { color: '#888' }, grid: { color: '#0f3460' }, beginAtZero: true },
+              },
+              maintainAspectRatio: true,
+            },
+          });
+
+          // Backend doughnut
+          const bc = data.backend_counts || [];
+          makeDoughnut('backend-chart', bc.map(r => r.backend), bc.map(r => r.count));
+
+          // Mode doughnut
+          const mc = data.mode_counts || [];
+          makeDoughnut('mode-chart', mc.map(r => r.mode), mc.map(r => r.count));
+
+          // Tables
+          buildTable('subreddits-table', data.top_subreddits, 'subreddit',
+            s => `https://ihsoyct.github.io/?subreddit=${encodeURIComponent(s)}`);
+
+          buildTable('authors-table', data.top_authors, 'author',
+            a => `https://ihsoyct.github.io/?author=${encodeURIComponent(a)}`);
+
+          buildTable('queries-table', data.top_queries, 'search_text', null);
+
+          buildTable('referers-table', data.top_referers, 'referer',
+            r => r);
+        })
+        .catch(err => {
+          const el = document.getElementById('error');
+          el.textContent = 'Failed to load stats: ' + err.message;
+          el.style.display = 'block';
+          document.getElementById('date-range').textContent = '';
         });
+    }
 
-        // Backend doughnut
-        const bc = data.backend_counts || [];
-        makeDoughnut('backend-chart', bc.map(r => r.backend), bc.map(r => r.count));
-
-        // Mode doughnut
-        const mc = data.mode_counts || [];
-        makeDoughnut('mode-chart', mc.map(r => r.mode), mc.map(r => r.count));
-
-        // Tables
-        buildTable('subreddits-table', data.top_subreddits, 'subreddit');
-        buildTable('authors-table', data.top_authors, 'author');
-        buildTable('queries-table', data.top_queries, 'search_text');
-      })
-      .catch(err => {
-        const el = document.getElementById('error');
-        el.textContent = 'Failed to load stats: ' + err.message;
-        el.style.display = 'block';
-        document.getElementById('date-range').textContent = '';
+    // Period buttons
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPeriod = btn.dataset.period;
+        loadStats(currentPeriod);
       });
+    });
+
+    loadStats(currentPeriod);
   </script>
 </body>
 </html>
