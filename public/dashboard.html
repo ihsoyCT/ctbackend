@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ctarchive Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      font-family: system-ui, sans-serif;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.25rem;
+      color: #a78bfa;
+    }
+
+    .subtitle {
+      color: #888;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+
+    .summary {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 1.25rem 1.75rem;
+      border: 1px solid #0f3460;
+    }
+
+    .stat-card {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .stat-card .value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #a78bfa;
+      line-height: 1;
+    }
+
+    .stat-card .label {
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 0.4rem;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      color: #c4b5fd;
+      margin-bottom: 1rem;
+    }
+
+    .section {
+      margin-bottom: 2rem;
+    }
+
+    .chart-container {
+      background: #16213e;
+      border-radius: 10px;
+      padding: 1.25rem;
+      border: 1px solid #0f3460;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    canvas { max-height: 300px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th {
+      text-align: left;
+      color: #888;
+      font-weight: 500;
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    td {
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid #0f3460;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: #0f3460; }
+
+    .rank {
+      color: #555;
+      width: 2rem;
+    }
+
+    .count {
+      color: #a78bfa;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    #error {
+      background: #2d1b1b;
+      color: #f87171;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>ctarchive Analytics</h1>
+  <p class="subtitle" id="date-range">Loading...</p>
+
+  <div id="error"></div>
+
+  <div class="summary" id="summary" style="display:none">
+    <div class="card stat-card">
+      <div class="value" id="total-requests">—</div>
+      <div class="label">Total Requests</div>
+    </div>
+    <div class="card stat-card">
+      <div class="value" id="days-tracked">—</div>
+      <div class="label">Days Tracked</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="chart-container">
+      <h2>Requests per Day (last 30 days)</h2>
+      <canvas id="requests-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="section two-col">
+    <div class="chart-container">
+      <h2>Backend</h2>
+      <canvas id="backend-chart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h2>Mode</h2>
+      <canvas id="mode-chart"></canvas>
+    </div>
+  </div>
+
+  <div class="section two-col">
+    <div class="card">
+      <h2>Top Subreddits</h2>
+      <table id="subreddits-table">
+        <thead><tr><th class="rank">#</th><th>Subreddit</th><th class="count">Requests</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Top Authors</h2>
+      <table id="authors-table">
+        <thead><tr><th class="rank">#</th><th>Author</th><th class="count">Requests</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2>Top Search Queries</h2>
+      <table id="queries-table">
+        <thead><tr><th class="rank">#</th><th>Query</th><th class="count">Requests</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function esc(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function buildTable(tableId, rows, keyField) {
+      const tbody = document.querySelector('#' + tableId + ' tbody');
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="color:#555;padding:.5rem .6rem">No data</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td class="rank">${i + 1}</td>
+          <td>${esc(r[keyField])}</td>
+          <td class="count">${r.count.toLocaleString()}</td>
+        </tr>
+      `).join('');
+    }
+
+    const DOUGHNUT_COLORS = [
+      '#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f87171',
+      '#818cf8', '#38bdf8', '#4ade80', '#fb923c', '#e879f9',
+    ];
+
+    const chartDefaults = {
+      plugins: {
+        legend: { labels: { color: '#ccc' } },
+      },
+    };
+
+    Chart.defaults.color = '#ccc';
+
+    function makeDoughnut(canvasId, labels, data) {
+      new Chart(document.getElementById(canvasId), {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: DOUGHNUT_COLORS.slice(0, data.length),
+            borderColor: '#1a1a2e',
+            borderWidth: 2,
+          }],
+        },
+        options: { ...chartDefaults, maintainAspectRatio: true },
+      });
+    }
+
+    const apiKey = new URLSearchParams(location.search).get('key') || '';
+    const statsUrl = '/api/stats' + (apiKey ? '?key=' + encodeURIComponent(apiKey) : '');
+
+    fetch(statsUrl)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(data => {
+        // Summary
+        document.getElementById('total-requests').textContent =
+          (data.total_requests || 0).toLocaleString();
+
+        const dr = data.date_range || {};
+        if (dr.first_date && dr.last_date) {
+          const days = Math.round(
+            (new Date(dr.last_date) - new Date(dr.first_date)) / 86400000
+          ) + 1;
+          document.getElementById('days-tracked').textContent = days.toLocaleString();
+          document.getElementById('date-range').textContent =
+            `${dr.first_date} — ${dr.last_date}`;
+        } else {
+          document.getElementById('date-range').textContent = 'No data yet';
+        }
+        document.getElementById('summary').style.display = 'flex';
+
+        // Requests per day line chart
+        const rpd = data.requests_per_day || [];
+        new Chart(document.getElementById('requests-chart'), {
+          type: 'line',
+          data: {
+            labels: rpd.map(r => r.date),
+            datasets: [{
+              label: 'Requests',
+              data: rpd.map(r => r.count),
+              borderColor: '#a78bfa',
+              backgroundColor: 'rgba(167,139,250,0.15)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 3,
+            }],
+          },
+          options: {
+            ...chartDefaults,
+            scales: {
+              x: { ticks: { color: '#888' }, grid: { color: '#0f3460' } },
+              y: { ticks: { color: '#888' }, grid: { color: '#0f3460' }, beginAtZero: true },
+            },
+            maintainAspectRatio: true,
+          },
+        });
+
+        // Backend doughnut
+        const bc = data.backend_counts || [];
+        makeDoughnut('backend-chart', bc.map(r => r.backend), bc.map(r => r.count));
+
+        // Mode doughnut
+        const mc = data.mode_counts || [];
+        makeDoughnut('mode-chart', mc.map(r => r.mode), mc.map(r => r.count));
+
+        // Tables
+        buildTable('subreddits-table', data.top_subreddits, 'subreddit');
+        buildTable('authors-table', data.top_authors, 'author');
+        buildTable('queries-table', data.top_queries, 'search_text');
+      })
+      .catch(err => {
+        const el = document.getElementById('error');
+        el.textContent = 'Failed to load stats: ' + err.message;
+        el.style.display = 'block';
+        document.getElementById('date-range').textContent = '';
+      });
+  </script>
+</body>
+</html>
