@@ -2,221 +2,161 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-const CACHE_TTL = parseInt(process.env.STATS_CACHE_TTL || '300', 10) * 1000; // ms
-const cache = new Map(); // period -> { ts, data }
-
-function getCached(period) {
-  const entry = cache.get(period);
-  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
-  return null;
-}
-
-function setCached(period, data) {
-  cache.set(period, { ts: Date.now(), data });
-}
+const PERIODS = ['today', 'week', 'month', 'all'];
+const cache = new Map(); // period -> { computed_at, ...stats }
 
 function periodWhere(period) {
-  if (period === 'today') return "AND date = date('now')";
-  if (period === 'week')  return "AND date >= date('now', '-6 days')";
-  if (period === 'month') return "AND date >= date('now', '-29 days')";
-  return '';
+  if (period === 'today') return "date = date('now')";
+  if (period === 'week')  return "date >= date('now', '-6 days')";
+  if (period === 'month') return "date >= date('now', '-29 days')";
+  return '1';
 }
 
-function periodDateFilter(period) {
-  if (period === 'today') return "WHERE date = date('now')";
-  if (period === 'week')  return "WHERE date >= date('now', '-6 days')";
-  if (period === 'month') return "WHERE date >= date('now', '-29 days')";
-  return '';
-}
+function computeStats(period) {
+  const w = periodWhere(period);
+  const all = sql => db.prepare(sql).all();
+  const get = sql => db.prepare(sql).get();
 
-router.get('/', (req, res) => {
-  if (process.env.API_KEY && req.query.key !== process.env.API_KEY) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-
-  res.set('Cache-Control', 'no-store');
-
-  const period = req.query.period || 'all';
-
-  const cached = getCached(period);
-  if (cached) return res.json(cached);
-
-  const pw = periodWhere(period);
-  const pf = periodDateFilter(period);
-
-  const top_subreddits = db.prepare(`
+  const top_subreddits = all(`
     SELECT subreddit, COUNT(DISTINCT ip) AS count
-    FROM page_views
-    WHERE subreddit IS NOT NULL AND subreddit != ''
-    ${pw}
-    GROUP BY subreddit ORDER BY count DESC LIMIT 20
-  `).all();
+    FROM searches WHERE ${w} AND subreddit IS NOT NULL
+    GROUP BY subreddit ORDER BY count DESC LIMIT 25
+  `);
 
-  const top_authors = db.prepare(`
+  const top_authors = all(`
     SELECT author, COUNT(DISTINCT ip) AS count
-    FROM page_views
-    WHERE author IS NOT NULL AND author != ''
-    ${pw}
-    GROUP BY author ORDER BY count DESC LIMIT 20
-  `).all();
+    FROM searches WHERE ${w} AND author IS NOT NULL
+    GROUP BY author ORDER BY count DESC LIMIT 25
+  `);
 
-  const top_queries = db.prepare(`
-    SELECT search_text, COUNT(DISTINCT ip) AS count
-    FROM page_views
-    WHERE search_text IS NOT NULL AND search_text != ''
-    ${pw}
-    GROUP BY search_text ORDER BY count DESC LIMIT 20
-  `).all();
+  const top_queries = all(`
+    SELECT query AS search_text, COUNT(DISTINCT ip) AS count
+    FROM searches WHERE ${w} AND query IS NOT NULL
+    GROUP BY query ORDER BY count DESC LIMIT 25
+  `);
 
-  const backend_counts = db.prepare(`
+  const subreddit_author_pairs = all(`
+    SELECT subreddit, author, COUNT(DISTINCT ip) AS count
+    FROM searches WHERE ${w} AND subreddit IS NOT NULL AND author IS NOT NULL
+    GROUP BY subreddit, author ORDER BY count DESC LIMIT 20
+  `);
+
+  const backend_counts = all(`
     SELECT COALESCE(backend, 'unknown') AS backend, COUNT(DISTINCT ip) AS count
-    FROM page_views ${pf}
-    GROUP BY COALESCE(backend, 'unknown') ORDER BY count DESC
-  `).all();
+    FROM searches WHERE ${w}
+    GROUP BY 1 ORDER BY count DESC
+  `);
 
-  const mode_counts = db.prepare(`
+  const mode_counts = all(`
     SELECT COALESCE(mode, 'unknown') AS mode, COUNT(DISTINCT ip) AS count
-    FROM page_views ${pf}
-    GROUP BY COALESCE(mode, 'unknown') ORDER BY count DESC
-  `).all();
+    FROM searches WHERE ${w}
+    GROUP BY 1 ORDER BY count DESC
+  `);
 
-  const requests_per_day = db.prepare(`
-    SELECT date, COUNT(DISTINCT ip) AS count
-    FROM page_views
-    ${pf || "WHERE date >= date('now', '-30 days')"}
+  // Unique visitors per day across all request kinds
+  const requests_per_day = all(`
+    SELECT date, COUNT(*) AS count
+    FROM daily_visitors WHERE ${period === 'all' ? '1' : w}
     GROUP BY date ORDER BY date ASC
-  `).all();
+  `);
 
-  const { total_unique } = db.prepare(`
-    SELECT COUNT(DISTINCT ip) AS total_unique FROM page_views ${pf}
-  `).get();
+  const { total_unique } = get(`
+    SELECT COUNT(DISTINCT ip) AS total_unique FROM daily_visitors WHERE ${w}
+  `);
 
-  const { total_requests } = db.prepare(`
-    SELECT COUNT(*) AS total_requests FROM page_views ${pf}
-  `).get();
+  const kinds = Object.fromEntries(all(`
+    SELECT kind, SUM(requests) AS n FROM daily_counts WHERE ${w} GROUP BY kind
+  `).map(r => [r.kind, r.n]));
 
-  const date_range = db.prepare(`
-    SELECT MIN(date) AS first_date, MAX(date) AS last_date FROM page_views
-  `).get();
+  const date_range = get(`
+    SELECT MIN(date) AS first_date, MAX(date) AS last_date FROM daily_counts
+  `);
 
-  const top_referers = db.prepare(`
-    SELECT referer, COUNT(DISTINCT ip) AS count
-    FROM page_views
-    WHERE referer IS NOT NULL AND referer != ''
-    ${pw}
-    GROUP BY referer ORDER BY count DESC LIMIT 20
-  `).all();
-
-  // Hour of day (UTC)
-  const hour_of_day = db.prepare(`
+  const hour_of_day = all(`
     SELECT strftime('%H', ts, 'unixepoch') AS hour, COUNT(DISTINCT ip) AS count
-    FROM page_views ${pf}
+    FROM searches WHERE ${w}
     GROUP BY hour ORDER BY hour ASC
-  `).all();
+  `);
 
-  // Day of week (0=Sun … 6=Sat)
-  const day_of_week = db.prepare(`
+  const day_of_week = all(`
     SELECT strftime('%w', ts, 'unixepoch') AS dow, COUNT(DISTINCT ip) AS count
-    FROM page_views ${pf}
+    FROM searches WHERE ${w}
     GROUP BY dow ORDER BY dow ASC
-  `).all();
+  `);
 
-  // Searches per session distribution
-  const session_distribution = db.prepare(`
+  // A session is one visitor on one day
+  const session_distribution = all(`
     SELECT
-      CASE
-        WHEN s = 1      THEN '1'
-        WHEN s <= 3     THEN '2–3'
-        WHEN s <= 5     THEN '4–5'
-        WHEN s <= 10    THEN '6–10'
-        ELSE '10+'
-      END AS bucket,
-      CASE
-        WHEN s = 1      THEN 1
-        WHEN s <= 3     THEN 2
-        WHEN s <= 5     THEN 3
-        WHEN s <= 10    THEN 4
-        ELSE 5
-      END AS ord,
+      CASE WHEN s = 1 THEN '1' WHEN s <= 3 THEN '2–3' WHEN s <= 5 THEN '4–5'
+           WHEN s <= 10 THEN '6–10' ELSE '10+' END AS bucket,
+      CASE WHEN s = 1 THEN 1 WHEN s <= 3 THEN 2 WHEN s <= 5 THEN 3
+           WHEN s <= 10 THEN 4 ELSE 5 END AS ord,
       COUNT(*) AS sessions
-    FROM (
-      SELECT ip, date, COUNT(*) AS s
-      FROM page_views ${pf}
-      GROUP BY ip, date
-    )
-    GROUP BY bucket, ord
-    ORDER BY ord
-  `).all();
+    FROM (SELECT ip, date, COUNT(*) AS s FROM searches WHERE ${w} GROUP BY ip, date)
+    GROUP BY bucket, ord ORDER BY ord
+  `);
 
-  const { avg_searches } = db.prepare(`
+  const { avg_searches } = get(`
     SELECT ROUND(AVG(s), 1) AS avg_searches
-    FROM (
-      SELECT ip, date, COUNT(*) AS s
-      FROM page_views ${pf}
-      GROUP BY ip, date
-    )
-  `).get();
+    FROM (SELECT ip, date, COUNT(*) AS s FROM searches WHERE ${w} GROUP BY ip, date)
+  `);
 
-  // Trending subreddits: this week vs last week (always fixed, ignores period)
-  const trending_subreddits = db.prepare(`
+  // This week vs last week, independent of period
+  const trending_subreddits = all(`
     WITH this_week AS (
-      SELECT subreddit, COUNT(DISTINCT ip) AS tw
-      FROM page_views
-      WHERE date >= date('now', '-6 days')
-        AND subreddit IS NOT NULL AND subreddit != ''
+      SELECT subreddit, COUNT(DISTINCT ip) AS tw FROM searches
+      WHERE date >= date('now', '-6 days') AND subreddit IS NOT NULL
       GROUP BY subreddit
     ),
     last_week AS (
-      SELECT subreddit, COUNT(DISTINCT ip) AS lw
-      FROM page_views
-      WHERE date >= date('now', '-13 days') AND date < date('now', '-6 days')
-        AND subreddit IS NOT NULL AND subreddit != ''
+      SELECT subreddit, COUNT(DISTINCT ip) AS lw FROM searches
+      WHERE date >= date('now', '-13 days') AND date < date('now', '-6 days') AND subreddit IS NOT NULL
       GROUP BY subreddit
     )
-    SELECT
-      COALESCE(t.subreddit, l.subreddit) AS subreddit,
-      COALESCE(t.tw, 0) AS this_week,
-      COALESCE(l.lw, 0) AS last_week
-    FROM this_week t
-    LEFT JOIN last_week l ON t.subreddit = l.subreddit
-    ORDER BY this_week DESC
-    LIMIT 20
-  `).all();
+    SELECT t.subreddit, t.tw AS this_week, COALESCE(l.lw, 0) AS last_week
+    FROM this_week t LEFT JOIN last_week l ON t.subreddit = l.subreddit
+    ORDER BY this_week DESC LIMIT 20
+  `);
 
-  // Subreddit + author pairs
-  const subreddit_author_pairs = db.prepare(`
-    SELECT subreddit, author, COUNT(DISTINCT ip) AS count
-    FROM page_views
-    WHERE subreddit IS NOT NULL AND subreddit != ''
-      AND author IS NOT NULL AND author != ''
-    ${pw}
-    GROUP BY subreddit, author
-    ORDER BY count DESC
-    LIMIT 20
-  `).all();
-
-  const result = {
+  return {
+    period,
+    computed_at: new Date().toISOString(),
     top_subreddits,
     top_authors,
     top_queries,
+    subreddit_author_pairs,
     backend_counts,
     mode_counts,
     requests_per_day,
     total_unique,
-    total_requests,
+    total_requests: (kinds.search || 0) + (kinds.thread || 0) + (kinds.other || 0),
+    total_searches: kinds.search || 0,
+    thread_views:   kinds.thread || 0,
     date_range,
-    top_referers,
     hour_of_day,
     day_of_week,
     session_distribution,
     avg_searches,
     trending_subreddits,
-    subreddit_author_pairs,
-    period,
   };
+}
 
-  setCached(period, result);
-  return res.json(result);
+// Called periodically by server.js so requests never run the heavy queries
+function refreshStats() {
+  for (const period of PERIODS) {
+    try {
+      cache.set(period, computeStats(period));
+    } catch (err) {
+      console.error(`[stats] ${period}: ${err.message}`);
+    }
+  }
+}
+
+router.get('/', (req, res) => {
+  const period = PERIODS.includes(req.query.period) ? req.query.period : 'all';
+  if (!cache.has(period)) cache.set(period, computeStats(period));
+  res.set('Cache-Control', 'no-store');
+  res.json(cache.get(period));
 });
 
-module.exports = router;
+module.exports = { router, refreshStats };

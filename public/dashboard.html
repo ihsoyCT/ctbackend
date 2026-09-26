@@ -98,12 +98,12 @@
       <div class="label">Unique Visitors</div>
     </div>
     <div class="card stat-card">
-      <div class="value" id="total-requests">—</div>
-      <div class="label">Total Requests</div>
+      <div class="value" id="total-searches">—</div>
+      <div class="label">Searches</div>
     </div>
     <div class="card stat-card">
-      <div class="value" id="days-tracked">—</div>
-      <div class="label">Days Tracked</div>
+      <div class="value" id="thread-views">—</div>
+      <div class="label">Thread Views</div>
     </div>
     <div class="card stat-card">
       <div class="value" id="avg-searches">—</div>
@@ -214,21 +214,10 @@
       <div id="search-status" style="color:#888;font-size:0.8rem;margin-bottom:0.5rem"></div>
       <div style="overflow-x:auto">
         <table id="search-table">
-          <thead><tr><th>IP</th><th>URL</th><th>Referer</th><th>Date</th></tr></thead>
+          <thead><tr><th>Visitor</th><th>URL</th><th>Date</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-    </div>
-  </div>
-
-  <!-- Top Referers -->
-  <div class="section">
-    <div class="card">
-      <h2>Top Referers</h2>
-      <table id="referers-table">
-        <thead><tr><th class="rank">#</th><th>Referer</th><th class="count">Visitors</th></tr></thead>
-        <tbody></tbody>
-      </table>
     </div>
   </div>
 
@@ -304,15 +293,17 @@
     }
 
     const ctBase = 'https://ihsoyct.github.io/?backend=artic_shift&mode=submissions';
-    const apiKey = new URLSearchParams(location.search).get('key') || '';
+    // Key comes from the URL fragment (/stats/#key=...) so it never reaches server logs
+    const apiKey = new URLSearchParams(location.hash.slice(1)).get('key')
+      || new URLSearchParams(location.search).get('key') || '';
+    const apiHeaders = { 'X-API-Key': apiKey };
     let currentPeriod = 'all';
 
     function loadStats(period) {
       const params = new URLSearchParams();
-      if (apiKey) params.set('key', apiKey);
       params.set('period', period);
 
-      fetch('/api/stats?' + params.toString())
+      fetch('api/stats?' + params.toString(), { headers: apiHeaders })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
           document.getElementById('error').style.display = 'none';
@@ -320,16 +311,17 @@
 
           // Summary
           document.getElementById('total-unique').textContent   = (data.total_unique   || 0).toLocaleString();
-          document.getElementById('total-requests').textContent = (data.total_requests || 0).toLocaleString();
+          document.getElementById('total-searches').textContent = (data.total_searches || 0).toLocaleString();
+          document.getElementById('thread-views').textContent   = (data.thread_views   || 0).toLocaleString();
           document.getElementById('avg-searches').textContent   = data.avg_searches ?? '—';
 
           const dr = data.date_range || {};
           if (dr.first_date && dr.last_date) {
             const days = Math.round((new Date(dr.last_date) - new Date(dr.first_date)) / 86400000) + 1;
-            document.getElementById('days-tracked').textContent = days.toLocaleString();
-            document.getElementById('date-range').textContent   = `${dr.first_date} — ${dr.last_date}`;
+            const updated = data.computed_at ? ` · updated ${new Date(data.computed_at).toLocaleTimeString()}` : '';
+            document.getElementById('date-range').textContent =
+              `${dr.first_date} — ${dr.last_date} (${days} days)${updated}`;
           } else {
-            document.getElementById('days-tracked').textContent = '0';
             document.getElementById('date-range').textContent   = 'No data yet';
           }
 
@@ -407,9 +399,8 @@
               </tr>`).join('');
           }
 
-          // Queries + referers
-          buildTable('queries-table',  data.top_queries,   'search_text', null);
-          buildTable('referers-table', data.top_referers,  'referer', r => r);
+          // Queries
+          buildTable('queries-table', data.top_queries, 'search_text', null);
         })
         .catch(err => {
           const el = document.getElementById('error');
@@ -445,23 +436,21 @@
       searchTbody.innerHTML = '';
 
       const params = new URLSearchParams();
-      if (apiKey) params.set('key', apiKey);
       params.set('q', q);
 
-      fetch('/api/search?' + params.toString())
+      fetch('api/search?' + params.toString(), { headers: apiHeaders })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(data => {
           const rows = data.results || [];
           searchStatus.textContent = `${rows.length} result${rows.length !== 1 ? 's' : ''}`;
           if (rows.length === 0) {
-            searchTbody.innerHTML = '<tr><td colspan="4" style="color:#555;padding:.5rem .6rem">No results</td></tr>';
+            searchTbody.innerHTML = '<tr><td colspan="3" style="color:#555;padding:.5rem .6rem">No results</td></tr>';
             return;
           }
           searchTbody.innerHTML = rows.map(r => `
             <tr>
               <td>${esc(r.ip || '—')}</td>
               <td><a href="${esc(r.raw_url)}" target="_blank" rel="noopener">${esc(r.raw_url)}</a></td>
-              <td>${r.referer ? `<a href="${esc(r.referer)}" target="_blank" rel="noopener">${esc(r.referer)}</a>` : '—'}</td>
               <td style="white-space:nowrap;color:#888">${esc(r.date)}</td>
             </tr>`).join('');
         })
