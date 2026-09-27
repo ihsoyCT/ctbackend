@@ -1,8 +1,12 @@
 // Incrementally imports the tracking logs written by ihsoy-api
 // (/var/log/ihsoyct-ref/YYYY-MM-DD.log) into the database.
 //
-// Line format:
+// Line formats:
 // [REQUEST] - [2026-09-26T17:31:15.417Z] - <sha256 of ip> - <page url>[ - Referer: <r>]
+// [BOT] - [2026-09-26T17:31:15.417Z] - <sha256 of ip> - <page url> - <crawler name>
+//
+// Crawler hits are only counted per day and crawler (kind 'bot:<name>'); they
+// are not visitors and never reach the searches table.
 
 const fs   = require('fs');
 const path = require('path');
@@ -15,6 +19,7 @@ const CHUNK_BYTES    = 4 * 1024 * 1024;
 const TRACKED_HOSTS  = new Set(['ihsoyct.github.io']);
 
 const LINE_RE = /^\[REQUEST\] - \[([^\]]+)\] - ([0-9a-f]{16,}) - (\S+)/;
+const BOT_RE = /^\[BOT\] - \[([^\]]+)\] - [0-9a-f]{16,} - \S+ - ([A-Za-z0-9_.-]{1,40})\s*$/;
 
 const getOffset = db.prepare('SELECT offset FROM import_state WHERE file = ?');
 const setOffset = db.prepare(`
@@ -41,6 +46,13 @@ function cutoffDate() {
 
 // Returns a parsed record, or null for lines that should be ignored entirely
 function parseLine(line, cutoff) {
+  const bot = line.match(BOT_RE);
+  if (bot) {
+    const date = bot[1].slice(0, 10);
+    if (Number.isNaN(Date.parse(bot[1])) || date < cutoff) return null;
+    return { date, kind: `bot:${bot[2]}` };
+  }
+
   const m = line.match(LINE_RE);
   if (!m) return null;
 
@@ -90,6 +102,7 @@ const importLines = db.transaction((lines, cutoff) => {
     const rec = parseLine(line, cutoff);
     if (!rec) continue;
     addCount.run(rec.date, rec.kind);
+    if (rec.kind.startsWith('bot:')) { n++; continue; }
     addVisitor.run(rec.date, rec.ip);
     if (rec.kind === 'search') insertSearch.run(rec);
     n++;
