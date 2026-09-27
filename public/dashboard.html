@@ -109,6 +109,11 @@
       <div class="value" id="avg-searches">—</div>
       <div class="label">Avg Searches / Session</div>
     </div>
+    <div class="card stat-card">
+      <div class="value" id="bot-hits" style="color:#888">—</div>
+      <div class="label">Crawler Hits <span style="font-size:0.75rem">(not counted above)</span></div>
+      <div class="label" id="bot-breakdown" style="font-size:0.75rem"></div>
+    </div>
   </div>
 
   <!-- Requests per day -->
@@ -312,6 +317,9 @@
           // Summary
           document.getElementById('total-unique').textContent   = (data.total_unique   || 0).toLocaleString();
           document.getElementById('total-searches').textContent = (data.total_searches || 0).toLocaleString();
+          document.getElementById('bot-hits').textContent = (data.bot_hits || 0).toLocaleString();
+          document.getElementById('bot-breakdown').textContent = (data.bot_counts || []).slice(0, 4)
+            .map(b => `${b.bot} ${b.count.toLocaleString()}`).join(' · ');
           document.getElementById('thread-views').textContent   = (data.thread_views   || 0).toLocaleString();
           document.getElementById('avg-searches').textContent   = data.avg_searches ?? '—';
 

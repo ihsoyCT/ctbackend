@@ -130,6 +130,10 @@ function computeStats(period) {
     requests_per_day,
     total_unique,
     total_requests: (kinds.search || 0) + (kinds.thread || 0) + (kinds.other || 0),
+    // Crawlers are counted separately and excluded from everything else
+    bot_hits: Object.entries(kinds).filter(([k]) => k.startsWith('bot:')).reduce((sum, [, n]) => sum + n, 0),
+    bot_counts: Object.entries(kinds).filter(([k]) => k.startsWith('bot:'))
+      .map(([k, n]) => ({ bot: k.slice(4), count: n })).sort((a, b) => b.count - a.count),
     total_searches: kinds.search || 0,
     thread_views:   kinds.thread || 0,
     date_range,
